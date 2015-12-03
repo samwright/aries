@@ -31,12 +31,15 @@ import javax.annotation.PreDestroy;
 import javax.persistence.PersistenceContext;
 import javax.persistence.PersistenceUnit;
 
+import org.springframework.context.annotation.Scope;
+
 public class Bean extends BeanRef {
     public String initMethod;
     public String destroyMethod;
     public SortedSet<Property> properties;
     public Field[] persistenceFields;
     public TransactionalDef transactionDef;
+    public String scope;
 
     public Bean(Class<?> clazz) {
         super(clazz, BeanRef.getBeanName(clazz));
@@ -51,12 +54,19 @@ public class Bean extends BeanRef {
                 this.destroyMethod = method.getName();
             }
         }
+        this.scope = getScope(clazz);
         this.persistenceFields = getPersistenceFields();
         this.transactionDef = new JavaxTransactionFactory().create(clazz);
         if (this.transactionDef == null) {
             this.transactionDef = new SpringTransactionFactory().create(clazz);
         }
         properties = new TreeSet<Property>();
+    }
+
+    private String getScope(Class<?> clazz)
+    {
+        Scope scope = clazz.getAnnotation(Scope.class);
+        return scope != null ? scope.value() : null;
     }
 
     private Field[] getPersistenceFields() {

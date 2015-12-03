@@ -146,6 +146,9 @@ public class Generator implements PropertyWriter {
         if (bean instanceof ProducedBean) {
             writeFactory((ProducedBean)bean);
         }
+        if (bean.scope != null) {
+            writer.writeAttribute("scope", bean.scope);
+        }
         if (bean.initMethod != null) {
             writer.writeAttribute("init-method", bean.initMethod);
         }

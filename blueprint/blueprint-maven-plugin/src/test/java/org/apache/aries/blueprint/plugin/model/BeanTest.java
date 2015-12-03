@@ -47,6 +47,7 @@ public class BeanTest {
         assertEquals("*", bean.transactionDef.getMethod());
         assertEquals("Required", bean.transactionDef.getType());
         assertEquals(1, bean.properties.size());
+        assertEquals("prototype", bean.scope);
         Property prop = bean.properties.iterator().next();
         assertEquals("bean2", prop.name);
         assertEquals("serviceA", prop.ref);

@@ -26,8 +26,10 @@ import javax.transaction.Transactional;
 import javax.transaction.Transactional.TxType;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 
 @Singleton
+@Scope("prototype")
 @Transactional(value=TxType.REQUIRED)
 public class MyBean1 extends ParentBean {
 
