@@ -22,7 +22,9 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -34,33 +36,37 @@ import javax.persistence.PersistenceUnit;
 
 import org.springframework.stereotype.Component;
 
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+
 public class Bean extends BeanRef {
     public String initMethod;
     public String destroyMethod;
     public SortedSet<Property> properties;
     public Field[] persistenceFields;
-    public TransactionalDef transactionDef;
+    public Set<TransactionalDef> transactionDefs = new HashSet<TransactionalDef>();
     public boolean isPrototype;
 
     public Bean(Class<?> clazz) {
         super(clazz, BeanRef.getBeanName(clazz));
 
-        for (Method method : clazz.getDeclaredMethods()) {
-            PostConstruct postConstruct = getEffectiveAnnotation(method, PostConstruct.class);
-            if (postConstruct != null) {
-                this.initMethod = method.getName();
-            }
-            PreDestroy preDestroy = getEffectiveAnnotation(method, PreDestroy.class);
-            if (preDestroy != null) {
-                this.destroyMethod = method.getName();
-            }
+        // Init method
+        Method initMethod = getMethodWithAnnotation(clazz, PostConstruct.class);
+        if (initMethod != null) {
+            this.initMethod = initMethod.getName();
         }
+
+        // Destroy method
+        Method destroyMethod = getMethodWithAnnotation(clazz, PreDestroy.class);
+        if (destroyMethod != null) {
+            this.destroyMethod = destroyMethod.getName();
+        }
+
+        // Transactional methods
+        transactionDefs.addAll(new JavaxTransactionFactory().create(clazz));
+        transactionDefs.addAll(new SpringTransactionFactory().create(clazz));
         this.isPrototype = isPrototype(clazz);
         this.persistenceFields = getPersistenceFields();
-        this.transactionDef = new JavaxTransactionFactory().create(clazz);
-        if (this.transactionDef == null) {
-            this.transactionDef = new SpringTransactionFactory().create(clazz);
-        }
         properties = new TreeSet<Property>();
     }
 
@@ -81,7 +87,7 @@ public class Bean extends BeanRef {
         }
         return persistenceFields.toArray(new Field[]{});
     }
-    
+
     public void resolve(Matcher matcher) {
         Class<?> curClass = this.clazz;
         while (curClass != null && curClass != Object.class) {
@@ -89,7 +95,7 @@ public class Bean extends BeanRef {
             curClass = curClass.getSuperclass();
         }
     }
-    
+
     private void resolveProperties(Matcher matcher, Class<?> curClass) {
         for (Field field : curClass.getDeclaredFields()) {
             Property prop = Property.create(matcher, field);
@@ -99,45 +105,26 @@ public class Bean extends BeanRef {
         }
     }
 
-    private static <T extends Annotation> T getEffectiveAnnotation(Method method, Class<T> annotationClass) {
-        final Class<?> methodClass = method.getDeclaringClass();
-        final String name = method.getName();
-        final Class<?>[] params = method.getParameterTypes();
-
-        // 1. Current class
-        final T rootAnnotation = method.getAnnotation(annotationClass);
-        if (rootAnnotation != null) {
-            return rootAnnotation;
-        }
-
-        // 2. Superclass
-        final Class<?> superclass = methodClass.getSuperclass();
-        if (superclass != null) {
-            final T annotation = getMethodAnnotation(superclass, name, params, annotationClass);
-            if (annotation != null)
-                return annotation;
-        }
-
-        // 3. Interfaces
-        for (final Class<?> intfs : methodClass.getInterfaces()) {
-            final T annotation = getMethodAnnotation(intfs, name, params, annotationClass);
-            if (annotation != null)
-                return annotation;
-        }
-
-        return null;
+    private static <T extends Annotation> Method getMethodWithAnnotation(Class<?> classToSearch,
+                                                                         Class<T> annotationClass) {
+        List<Method> methods = getMethodsWithAnnotation(classToSearch, annotationClass);
+        Preconditions.checkArgument(methods.size() <= 1,
+                                    "Found %d methods annotated with %s in class %s, but only 1 allowed",
+                                    methods.size(), annotationClass.getName(), classToSearch.getName());
+        return Iterables.getOnlyElement(methods, null);
     }
 
-    private static <T extends Annotation> T getMethodAnnotation(Class<?> searchClass, String name, Class<?>[] params,
-            Class<T> annotationClass) {
-        try {
-            Method method = searchClass.getMethod(name, params);
-            return getEffectiveAnnotation(method, annotationClass);
-        } catch (NoSuchMethodException e) {
-            return null;
+    private static <T extends Annotation> List<Method> getMethodsWithAnnotation(Class<?> classToSearch,
+                                                                                Class<T> annotationClass) {
+        List<Method> methods = new ArrayList<>();
+        for (Method method : classToSearch.getMethods()) {
+            T annotation = method.getAnnotation(annotationClass);
+            if (annotation != null) {
+                methods.add(method);
+            }
         }
+        return methods;
     }
-
 
     @Override
     public int hashCode() {
@@ -158,5 +145,5 @@ public class Bean extends BeanRef {
             writer.writeProperty(property);
         }
     }
-    
+
 }

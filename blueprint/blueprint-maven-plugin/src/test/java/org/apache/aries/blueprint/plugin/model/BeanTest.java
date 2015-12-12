@@ -23,6 +23,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.Set;
+
 import javax.inject.Named;
 
 import org.apache.aries.blueprint.plugin.test.MyBean1;
@@ -32,9 +34,10 @@ import org.apache.aries.blueprint.plugin.test.ServiceAImpl1;
 import org.junit.Assert;
 import org.junit.Test;
 
+import com.google.common.collect.Sets;
 
 public class BeanTest {
-    
+
     @Test
     public void testParseMyBean1() {
         Bean bean = new Bean(MyBean1.class);
@@ -46,15 +49,18 @@ public class BeanTest {
         Assert.assertEquals(2, bean.persistenceFields.length);
         assertEquals("em", bean.persistenceFields[0].getName());
         assertEquals("emf", bean.persistenceFields[1].getName());
-        assertEquals("*", bean.transactionDef.getMethod());
-        assertEquals("Required", bean.transactionDef.getType());
         assertEquals(1, bean.properties.size());
         assertFalse(bean.isPrototype);
         Property prop = bean.properties.iterator().next();
         assertEquals("bean2", prop.name);
         assertEquals("serviceA", prop.ref);
+
+        Set<TransactionalDef> expectedTxs = Sets.newHashSet(new TransactionalDef("*", "Required"),
+                                                            new TransactionalDef("readData", "RequiresNew"),
+                                                            new TransactionalDef("updateData", "Supports"));
+        assertEquals(expectedTxs, bean.transactionDefs);
     }
-    
+
     @Test
     public void testParseMyBean3() {
         Bean bean = new Bean(MyBean3.class);
@@ -69,7 +75,7 @@ public class BeanTest {
         assertEquals(5, bean.properties.size());
         assertTrue(bean.isPrototype);
     }
-    
+
     @Test
     public void testParseNamedBean() {
         Bean bean = new Bean(ServiceAImpl1.class);
@@ -84,7 +90,7 @@ public class BeanTest {
         assertEquals("There should be no properties", 0, bean.properties.size());
         assertTrue(bean.isPrototype);
     }
-    
+
     @Test
     public void testBlueprintBundleContext() {
         Bean bean = new Bean(MyBean4.class);

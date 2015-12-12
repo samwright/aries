@@ -33,20 +33,22 @@ public class MyBean1 extends ParentBean {
 
     @Autowired
     ServiceA bean2;
-    
+
     @PersistenceContext(unitName="person")
     EntityManager em;
-    
+
     @PersistenceUnit(unitName="person")
     EntityManager emf;
-    
+
     public void init() {
-    }
-    
-    public void destroy() {
     }
 
     public void saveData() {
-        
+
+    }
+
+    @Transactional(TxType.REQUIRES_NEW)
+    public String readData() {
+        return "some data read from database";
     }
 }

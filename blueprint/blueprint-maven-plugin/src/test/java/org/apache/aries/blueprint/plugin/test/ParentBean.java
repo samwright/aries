@@ -20,14 +20,20 @@ package org.apache.aries.blueprint.plugin.test;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
+import javax.transaction.Transactional;
 
 public class ParentBean {
 
     @PostConstruct
     public void init() {
     }
-    
+
     @PreDestroy
     public void destroy() {
+    }
+
+    @Transactional(Transactional.TxType.SUPPORTS)
+    public String updateData() {
+        return "some data read from database";
     }
 }
